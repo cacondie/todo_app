@@ -8,9 +8,10 @@ anyhow = "1.0.102"
 async-trait = "0.1.89"
 axum = "0.8.9"
 dotenvy = "0.15.7"
-jiff = "0.2.28"
+jiff = { version = "0.2.28", features = ["serde"] }
+jiff-sqlx = { version = "0.2.0", features = ["sqlite"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.150"
-sqlx = { version = "0.8.6", features = ["sqlite", "runtime-tokio-rustls"] }
+sqlx = { version = "0.9", features = ["sqlite", "runtime-tokio", "tls-rustls"] }
 tokio = { version = "1.52.3", features = ["full"] }
 tower-http = { version = "0.7.0", features = ["cors"] }

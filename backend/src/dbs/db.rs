@@ -47,16 +47,39 @@ impl UserRepository for Database {
     }
 }
 
+
+#[async_trait]
 impl TaskRepository for Database
 {
     async fn get_tasks(&self) -> SqlResult<Vec<Task>> {
         let query = "SELECT * FROM tasks";
 
-        let tasks = sqlx::query(query)
+        let tasks = sqlx::query_as::<_, Task>(query)
+            .fetch_all(&self.pool)
+            .await?;
+
+        Ok(tasks)
+    }
+
+    async fn get_task(&self, task_id: i32) -> SqlResult<Option<Task>> {
+        let query = "SELECT * FROM task WHERE id = ?";
+
+        let task = sqlx::query_as::<_, Task>(query)
+            .bind(task_id)
+            .fetch_optional(&self.pool)
+            .await?;
+
+        Ok(task)
+    }
+
+    async fn insert_task(&self, task: &Task) -> SqlResult<()> {
+        let query = "INSERT INTO task (user_id, title, description, status, priority, due_date, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?);";
+        sqlx::query(query)
+            .bind(task.user_id)
             .execute(&self.pool)
             .await?;
 
-        Ok(tasks);
+        Ok(())
     }
 }
 
