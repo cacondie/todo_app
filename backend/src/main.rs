@@ -14,7 +14,7 @@ pub mod errors;
 use dbs::Database;
 use app_config::AppConfig;
 use routes::health;
-use routes::get_users_async;
+use routes::{get_users_async, get_tasks_async};
 
 
 #[tokio::main]
@@ -28,6 +28,7 @@ async fn main() {
     let app = Router::new()
         .route("/api/health", get(health))
         .route("/api/users", get(get_users_async))
+        .route("/api/tasks", get(get_tasks_async))
         .with_state(app_config)
         .layer(CorsLayer::permissive());
 

@@ -44,3 +44,12 @@ pub struct Task {
     #[sqlx(try_from = "jiff_sqlx::Timestamp")]
     pub updated_at: JiffTimeStamp
 }
+
+impl Task {
+    pub fn new(user_id: i32, title: &str, description: &str, status: Status, priority: Priority, due_date: JiffTimeStamp) -> Self {
+        let now = JiffTimeStamp::now();
+        Self {
+            id: -1, user_id, title: title.to_string(), description: description.to_string(), status, priority, due_date, created_at: now, updated_at: now
+        }
+    }
+}

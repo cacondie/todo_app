@@ -4,6 +4,8 @@ use crate::dbs::UserRepository;
 use crate::models::{User, Task};
 use crate::errors::SqlResult;
 use crate::dbs::TaskRepository;
+use crate::models::{Status, Priority};
+use jiff::Timestamp as JiffTimeStamp;
 
 pub struct Database {
     pool: SqlitePool
@@ -37,7 +39,7 @@ impl UserRepository for Database {
 
     async fn insert_user(&self, user_name: &str) -> SqlResult<()> {
         let query = "INSERT INTO users(name) VALUES(?)";
-    
+
         sqlx::query(query)
             .bind(user_name)
             .execute(&self.pool)
@@ -61,8 +63,18 @@ impl TaskRepository for Database
         Ok(tasks)
     }
 
+    async fn get_tasks_for_user(&self, user_id: i32) -> SqlResult<Vec<Task>> {
+        let query = "SELECT * FROM tasks WHERE user_id = ?";
+        let tasks = sqlx::query_as::<_, Task>(query)
+            .bind(user_id)
+            .fetch_all(&self.pool)
+            .await?;
+
+        Ok(tasks)
+    }
+
     async fn get_task(&self, task_id: i32) -> SqlResult<Option<Task>> {
-        let query = "SELECT * FROM task WHERE id = ?";
+        let query = "SELECT * FROM tasks WHERE id = ?";
 
         let task = sqlx::query_as::<_, Task>(query)
             .bind(task_id)
@@ -72,10 +84,17 @@ impl TaskRepository for Database
         Ok(task)
     }
 
-    async fn insert_task(&self, task: &Task) -> SqlResult<()> {
-        let query = "INSERT INTO task (user_id, title, description, status, priority, due_date, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?);";
+    async fn insert_task(&self, task: Task) -> SqlResult<()> {
+        let query = "INSERT INTO tasks (user_id, title, description, status, priority, due_date, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?);";
         sqlx::query(query)
             .bind(task.user_id)
+            .bind(task.title)
+            .bind(task.description)
+            .bind(task.status)
+            .bind(task.priority)
+            .bind(task.due_date.to_string())
+            .bind(task.created_at.to_string())
+            .bind(task.updated_at.to_string())
             .execute(&self.pool)
             .await?;
 
@@ -97,6 +116,11 @@ mod tests{
             .execute(&pool)
             .await
             .expect("Failed to create user table");
+
+        sqlx::query("CREATE TABLE tasks (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, title TEXT NOT NULL, description TEXT NULL, status INTEGER NOT NULL, priority INTEGER NOT NULL, due_date TEXT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)")
+            .execute(&pool)
+            .await
+            .expect("Failed to create task table");
 
         Database::new(pool)
     }
@@ -122,6 +146,23 @@ mod tests{
         let fetched_user = sut.get_user(987).await.expect("Unable to run function");
         assert!(fetched_user.is_none());
 
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn get_tasks_test() -> SqlResult<()> {
+        let now = JiffTimeStamp::now();
+        let task1 = Task::new(1, "some Title 1", "Description 1", Status::Todo, Priority::Medium, now);
+        let task2 = Task::new(1, "some Title 2", "Description 2", Status::Todo, Priority::Medium, now);
+        let task3 = Task::new(1, "some Title 3", "Description 3", Status::Todo, Priority::Medium, now);
+        let sut = setup_test_db().await;
+        sut.insert_task(task1).await.expect("unable to write task 1 to database");
+        sut.insert_task(task2).await.expect("unable to write task 1 to database");
+        sut.insert_task(task3).await.expect("unable to write task 1 to database");
+
+        let user_tasks = sut.get_tasks_for_user(1).await.expect("unable to get records from database");
+
+        assert_eq!(user_tasks.len(), 3);
         Ok(())
     }
 }
